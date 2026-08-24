@@ -3331,6 +3331,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       <div class="input-field"><label>Kata Sandi</label><input type="password" id="authPassword" placeholder="Masukkan kata sandi"></div>
       <div id="authErrorMsg" style="display: none; background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;">❌ Kata sandi salah atau User ID tidak ditemukan!</div>
       <button class="btn primary" id="authLoginBtn" style="margin-top: 8px; padding: 14px;">Masuk Aplikasi</button>
+      <button type="button" class="btn" id="demoLoginBtn" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:13px; font-weight:800; padding:12px;">🚀 Coba Demo Tanpa Akun</button>
+      <div style="text-align:center; font-size:11px; color:var(--text-muted); line-height:1.5;">Belum punya akun? Anda bisa langsung mencoba dashboard melalui mode demo.</div>
       <button type="button" class="btn" style="background:transparent; color:var(--esg-primary); font-size:13px; font-weight:700;" onclick="switchAuthTab('forgot')">Lupa Kata Sandi?</button>
     </div>
 
@@ -6686,6 +6688,50 @@ function processServerDataAndLogin(data, uid, pwd) {
   $('authModal').style.display = 'none';
 }
 
+function startDemoSession() {
+  const today = todayISO();
+  const demoRecords = [];
+  const samples = [
+    {offset:-2,motorGo:6,carGo:0,laptopHours:7,phoneHours:4,acHours:5,lampHours:6,tvHours:1},
+    {offset:-1,motorGo:4,carGo:3,laptopHours:6,phoneHours:3,acHours:4,lampHours:6,tvHours:0.5},
+    {offset:0,motorGo:5,carGo:0,laptopHours:5,phoneHours:4,acHours:3,lampHours:5,tvHours:1}
+  ];
+  samples.forEach(x=>{
+    const d=new Date(); d.setDate(d.getDate()+x.offset);
+    const r=enrichRecord({
+      date:d.toISOString().slice(0,10), motorGo:x.motorGo, motorBack:0, motorMob:0, motorKm:x.motorGo,
+      carGo:x.carGo, carBack:0, carMob:0, carKm:x.carGo, laptopHours:x.laptopHours, phoneHours:x.phoneHours,
+      acUnits:1, acUsers:1, acHours:x.acHours, lampUnits:1, lampUsers:1, lampHours:x.lampHours,
+      tvUnits:1, tvUsers:1, tvHours:x.tvHours, poolUnits:0, poolUsers:0, poolGo:0, poolBack:0
+    });
+    demoRecords.push(r);
+  });
+  state.profile={
+    ...state.profile,
+    userId:'DEMO', password:'demo123', userName:'Pengguna Demo',
+    department:'Personal', team:'Komunitas Demo', pg:'Area Aktivitas', role:'Pengguna'
+  };
+  state.records=demoRecords;
+  state.contributions=[
+    {id:'demo1',date:today,type:'Mematikan perangkat saat tidak digunakan',value:1},
+    {id:'demo2',date:today,type:'Menggunakan transportasi lebih efisien',value:1}
+  ];
+  localStorage.setItem('JejakKarbonKu_DEMO_MODE','true');
+  saveLocal();
+  localStorage.setItem(SESSION_AUTH_KEY,'true');
+  loadProfile();
+  const latest=demoRecords[demoRecords.length-1];
+  if(latest){
+    $('dashDateFilter').value=latest.date; $('gInputDate').value=latest.date; $('dateInput').value=latest.date;
+    setForm(latest);
+  }
+  renderDashboard();
+  $('authModal').style.display='none';
+  toast('🚀 Mode demo aktif. Semua data contoh tersimpan di perangkat Anda.');
+}
+
+$('demoLoginBtn').onclick = startDemoSession;
+
 $('authLoginBtn').onclick = async () => {
   const uid = $('authUserId').value.trim(), pwd = $('authPassword').value.trim(), errBox = $('authErrorMsg');
   errBox.style.display = 'none';
@@ -6704,7 +6750,11 @@ $('authLoginBtn').onclick = async () => {
         processServerDataAndLogin(data, uid, pwd); toast('✅ Welcome back!');
       } else { errBox.style.display = 'block'; toast('❌ Password tidak sesuai algoritma kami.'); }
     } else { errBox.style.display = 'block'; toast('❌ User ID tidak terindeks.'); }
-  } catch(e) { toast('❌ Server pusat sedang maintenance atau offline.'); }
+  } catch(e) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ Server belum dapat dihubungi. Anda tetap bisa mencoba aplikasi melalui <b>Mode Demo</b> tanpa akun.';
+    toast('⚠️ Server tidak terhubung. Gunakan Mode Demo.');
+  }
 };
 
 $('authSubmitRegisterBtn').onclick = async () => {
